@@ -15,11 +15,14 @@ jobs:
     - name: Setup User & VNC
       run: |
         echo "Creating new admin user for VNC..."
-        # Create user 'adminvnc' with password 'Rahasia123!'
         sudo sysadminctl -addUser adminvnc -fullName "VNC Admin" -password "Rahasia123!" -admin
         
+        echo "Preventing Sleep..."
+        sudo systemsetup -setcomputersleep Never
+        sudo systemsetup -setdisplaysleep Never
+        sudo systemsetup -setharddisksleep Never
+        
         echo "Configuring Remote Management (VNC)..."
-        # Enable ARD for the new user
         sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
           -users adminvnc \
@@ -27,6 +30,14 @@ jobs:
           -clientopts -setvnclegacy -vnclegacy yes \
           -clientopts -setvncpw -vncpw Rahasia123! \
           -restart -agent -privs -all
+
+        echo "Forcing Graphical Login..."
+        # Mencoba memaksa switch ke user adminvnc
+        # Mendapatkan UID adminvnc
+        ADMIN_UID=$(dscl . -read /Users/adminvnc UniqueID | awk '{print $2}')
+        echo "Switching to User ID: $ADMIN_UID"
+        # Gunakan CGSession untuk switch user (Fast User Switching)
+        sudo "/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession" -switchToUserID $ADMIN_UID
 
     # 2. Start SSH Tunnel (Pinggy.io)
     - name: Start Tunnel (Pinggy)
