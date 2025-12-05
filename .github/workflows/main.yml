@@ -32,12 +32,16 @@ jobs:
           -restart -agent -privs -all
 
         echo "Forcing Graphical Login..."
-        # Mencoba memaksa switch ke user adminvnc
-        # Mendapatkan UID adminvnc
+        # Mencoba login via launchctl 
         ADMIN_UID=$(dscl . -read /Users/adminvnc UniqueID | awk '{print $2}')
         echo "Switching to User ID: $ADMIN_UID"
-        # Gunakan CGSession untuk switch user (Fast User Switching)
-        sudo "/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession" -switchToUserID $ADMIN_UID
+        
+        # Opsi 1: Coba jalankan App sederhana (Finder) sebagai user tersebut
+        # Ini kadang memicu WindowServer untuk membuat session
+        sudo launchctl asuser $ADMIN_UID open -a Finder
+        
+        # Opsi 2: Konek otomatis ke sesi login console (kalau ada)
+        sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -restart -agent -console
 
     # 2. Start SSH Tunnel (Pinggy.io)
     - name: Start Tunnel (Pinggy)
