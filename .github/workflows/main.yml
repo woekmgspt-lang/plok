@@ -11,71 +11,41 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    # 1. Create User & Enable VNC
-    - name: Setup User & VNC
+    # 1. Setup Password & VNC untuk User Default 'runner'
+    - name: Setup VNC for 'runner'
       run: |
-        echo "Creating new admin user for VNC..."
-        sudo sysadminctl -addUser adminvnc -fullName "VNC Admin" -password "Rahasia123!" -admin
-        
-        echo "Preventing Sleep..."
-        sudo systemsetup -setcomputersleep Never
-        sudo systemsetup -setdisplaysleep Never
-        sudo systemsetup -setharddisksleep Never
-        
-        echo "Configuring Remote Management (VNC)..."
+        echo "Setting password for user 'runner'..."
+        # Gunakan path absolut dscl dan invoke dengan sudo
+        # Kita abaikan error kalau dia complaint soal password lama, kita paksa reset
+        sudo /usr/bin/dscl . -passwd /Users/runner Rahasia123! || echo "DSCL Warning (ignored)"
+
+        echo "Enabling Remote Management..."
         sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
-          -users adminvnc \
+          -users runner \
           -privs -all \
           -clientopts -setvnclegacy -vnclegacy yes \
           -clientopts -setvncpw -vncpw Rahasia123! \
           -restart -agent -privs -all
-
-        echo "Forcing Graphical Login..."
-        # Mencoba login via launchctl 
-        ADMIN_UID=$(dscl . -read /Users/adminvnc UniqueID | awk '{print $2}')
-        echo "Switching to User ID: $ADMIN_UID"
-        
-        # Opsi 1: Coba jalankan App sederhana (Finder) sebagai user tersebut
-        # Ini kadang memicu WindowServer untuk membuat session
-        sudo launchctl asuser $ADMIN_UID open -a Finder
-        
-        # Opsi 2: Konek otomatis ke sesi login console (kalau ada)
-        sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -restart -agent -console
+          
+        echo "Check if WindowServer is running..."
+        ps aux | grep WindowServer || echo "WindowServer NOT FOUND (This is bad)"
 
     # 2. Start SSH Tunnel (Pinggy.io)
     - name: Start Tunnel (Pinggy)
       run: |
-        echo "==================================================="
-        echo "  STARTING TUNNEL..."
-        echo "==================================================="
-        
-        # Jalankan SSH Tunnel ke Pinggy.io
-        # Mode TCP (-R0:localhost:5900)
-        # Output log disimpan ke file tunnel.log
+        echo "Starting tunnel..."
         ssh -o StrictHostKeyChecking=no -p 443 -R0:localhost:5900 tcp@a.pinggy.io > tunnel.log 2>&1 &
-        
-        # Tunggu tunnel connect
         sleep 10
-        
-        echo "==================================================="
-        echo "  CONNECTION INFO"
-        echo "==================================================="
-        # Pinggy biasanya menampilkan URL di baris pertama log
         cat tunnel.log
-        echo ""
-        echo "==================================================="
-        echo "  COPY ALAMAT DI ATAS (Misal: p1.pinggy.io:12345)"
-        echo "  Password VNC: Rahasia123!"
-        echo "==================================================="
 
     # 3. Keep Alive
     - name: Running Session
       run: |
-        # Loop 1 jam
+        echo "Session ready. Connect with VNC to localhost:5900 via tunnel."
+        echo "User: runner"
+        echo "Pass: Rahasia123!"
         for i in {1..360}; do
-          echo "Session active... ($i/360)"
-          # Tampilkan log tunnel terus barangkali IP ganti (jarang terjadi)
           tail -n 2 tunnel.log || true
           sleep 10
         done
