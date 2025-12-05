@@ -22,7 +22,7 @@ jobs:
           -restart -agent -privs -all
         
         echo "Set Password User Runner..."
-        echo "runner:Rahasia123!" | sudo chpasswd
+        sudo dscl . -passwd /Users/runner Rahasia123!
 
     # 2. Start SSH Tunnel (Pinggy.io)
     - name: Start Tunnel (Pinggy)
