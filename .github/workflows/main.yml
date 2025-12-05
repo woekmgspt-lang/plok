@@ -11,33 +11,48 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    # 1. Setup Password & VNC untuk User Default 'runner'
-    - name: Setup VNC for 'runner'
+    # 1. Setup User & VNC (Balik ke User Baru)
+    - name: Setup User & VNC
       run: |
-        echo "Setting password for user 'runner'..."
-        # Gunakan path absolut dscl dan invoke dengan sudo
-        # Kita abaikan error kalau dia complaint soal password lama, kita paksa reset
-        sudo /usr/bin/dscl . -passwd /Users/runner Rahasia123! || echo "DSCL Warning (ignored)"
-
-        echo "Enabling Remote Management..."
+        echo "Creating new admin user: adminvnc..."
+        sudo sysadminctl -addUser adminvnc -fullName "VNC Admin" -password "Rahasia123!" -admin
+        
+        echo "Configure VNC for adminvnc..."
         sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
-          -users runner \
+          -users adminvnc \
           -privs -all \
           -clientopts -setvnclegacy -vnclegacy yes \
           -clientopts -setvncpw -vncpw Rahasia123! \
           -restart -agent -privs -all
           
-        echo "Check if WindowServer is running..."
-        ps aux | grep WindowServer || echo "WindowServer NOT FOUND (This is bad)"
+        echo "Check WindowServer..."
+        ps aux | grep WindowServer
+        
+        echo "KILLING WindowServer to force Login Screen..."
+        # Ini akan memaksa GUI restart. Semoga gak mutusin koneksi GitHub Runner agent.
+        sudo killall WindowServer || echo "WindowServer not running"
+        
+        # Kasih waktu buat respawn
+        sleep 5
 
     # 2. Start SSH Tunnel (Pinggy.io)
     - name: Start Tunnel (Pinggy)
       run: |
         echo "Starting tunnel..."
+        # Pake port 5900
         ssh -o StrictHostKeyChecking=no -p 443 -R0:localhost:5900 tcp@a.pinggy.io > tunnel.log 2>&1 &
         sleep 10
+        
+        echo "==================================================="
+        echo "  VNC INFO"
+        echo "==================================================="
         cat tunnel.log
+        echo "==================================================="
+        echo "  LOGIN MANUAL DI VNC:"
+        echo "  User: adminvnc"
+        echo "  Pass: Rahasia123!"
+        echo "==================================================="
 
     # 3. Keep Alive
     - name: Running Session
