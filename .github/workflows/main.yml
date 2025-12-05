@@ -1,0 +1,62 @@
+name: macOS VNC Experience
+
+on: 
+  workflow_dispatch:
+
+jobs:
+  debug-mac:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    # 1. Enable VNC & Set Password
+    - name: Enable VNC
+      run: |
+        echo "Mengaktifkan Screen Sharing..."
+        sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+          -activate -configure -access -on \
+          -clientopts -setvnclegacy -vnclegacy yes \
+          -clientopts -setvncpw -vncpw Rahasia123! \
+          -restart -agent -privs -all
+        
+        echo "Set Password User Runner..."
+        echo "runner:Rahasia123!" | sudo chpasswd
+
+    # 2. Start SSH Tunnel (Pinggy.io)
+    - name: Start Tunnel (Pinggy)
+      run: |
+        echo "==================================================="
+        echo "  STARTING TUNNEL..."
+        echo "==================================================="
+        
+        # Jalankan SSH Tunnel ke Pinggy.io
+        # Mode TCP (-R0:localhost:5900)
+        # Output log disimpan ke file tunnel.log
+        ssh -o StrictHostKeyChecking=no -p 443 -R0:localhost:5900 tcp@a.pinggy.io > tunnel.log 2>&1 &
+        
+        # Tunggu tunnel connect
+        sleep 10
+        
+        echo "==================================================="
+        echo "  CONNECTION INFO"
+        echo "==================================================="
+        # Pinggy biasanya menampilkan URL di baris pertama log
+        cat tunnel.log
+        echo ""
+        echo "==================================================="
+        echo "  COPY ALAMAT DI ATAS (Misal: p1.pinggy.io:12345)"
+        echo "  Password VNC: Rahasia123!"
+        echo "==================================================="
+
+    # 3. Keep Alive
+    - name: Running Session
+      run: |
+        # Loop 1 jam
+        for i in {1..360}; do
+          echo "Session active... ($i/360)"
+          # Tampilkan log tunnel terus barangkali IP ganti (jarang terjadi)
+          tail -n 2 tunnel.log || true
+          sleep 10
+        done
