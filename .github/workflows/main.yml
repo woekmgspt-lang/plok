@@ -11,18 +11,22 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    # 1. Enable VNC & Set Password
-    - name: Enable VNC
+    # 1. Create User & Enable VNC
+    - name: Setup User & VNC
       run: |
-        echo "Mengaktifkan Screen Sharing..."
+        echo "Creating new admin user for VNC..."
+        # Create user 'adminvnc' with password 'Rahasia123!'
+        sudo sysadminctl -addUser adminvnc -fullName "VNC Admin" -password "Rahasia123!" -admin
+        
+        echo "Configuring Remote Management (VNC)..."
+        # Enable ARD for the new user
         sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
           -activate -configure -access -on \
+          -users adminvnc \
+          -privs -all \
           -clientopts -setvnclegacy -vnclegacy yes \
           -clientopts -setvncpw -vncpw Rahasia123! \
           -restart -agent -privs -all
-        
-        echo "Set Password User Runner..."
-        sudo dscl . -passwd /Users/runner Rahasia123!
 
     # 2. Start SSH Tunnel (Pinggy.io)
     - name: Start Tunnel (Pinggy)
